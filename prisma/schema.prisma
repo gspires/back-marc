@@ -1,0 +1,134 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  name      String   @db.VarChar(63)
+  email     String   @unique @db.VarChar(127)
+  password  String   @db.VarChar(127)
+  cpf       String   @db.VarChar(11)
+  role      String   @db.VarChar(63)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  profissional   Profissional? @relation("UserProfissional", fields: [profissionalId], references: [id])
+  profissionalId Int?          @unique
+
+  @@map("users")
+}
+
+model Paciente {
+  id             Int      @id @default(autoincrement())
+  nome           String
+  cpf            String   @unique
+  dataNascimento DateTime
+  telefone       String?
+  email          String?  @unique
+  endereco       String?
+  dataCadastro   DateTime @default(now())
+
+  consultas Consulta[]
+}
+
+model Profissional {
+  id               Int     @id @default(autoincrement())
+  nome             String
+  cpf              String  @unique
+  registroConselho String
+  especialidade    String?
+  telefone         String?
+  email            String? @unique
+
+  consultas          Consulta[]
+  agendaProfissional AgendaProfissional[]
+
+  user User? @relation("UserProfissional")
+
+  @@map("profissionais")
+}
+
+model Servico {
+  id             Int    @id @default(autoincrement())
+  descricao      String
+  duracaoMinutos Int
+  valor          Float
+  status         String @default("ATIVO")
+
+  consultas        Consulta[]
+  ServicoRelatorio ServicoRelatorio?
+}
+
+model AgendaProfissional {
+  id             Int      @id @default(autoincrement())
+  profissionalId Int
+  diaSemana      String
+  horaInicio     DateTime
+  horaFim        DateTime
+  intervaloMin   Int
+
+  profissional Profissional @relation(fields: [profissionalId], references: [id])
+}
+
+model Consulta {
+  id             Int      @id @default(autoincrement())
+  pacienteId     Int
+  profissionalId Int
+  servicoId      Int?
+  data           DateTime
+  horaInicio     DateTime
+  horaFim        DateTime
+  status         String // agendado, confirmado, realizado, cancelado
+  observacoes    String?
+
+  paciente     Paciente           @relation(fields: [pacienteId], references: [id])
+  profissional Profissional       @relation(fields: [profissionalId], references: [id])
+  servico      Servico?           @relation(fields: [servicoId], references: [id])
+  pagamento    Pagamento?
+  relatorio    RelatorioConsulta?
+}
+
+model Pagamento {
+  id             Int       @id @default(autoincrement())
+  consultaId     Int       @unique
+  valor          Float
+  formaPagamento String
+  status         String 
+  dataPagamento  DateTime?
+
+  consulta Consulta @relation(fields: [consultaId], references: [id])
+}
+
+model ServicoRelatorio {
+  id           Int      @id @default(autoincrement())
+  servicoId    Int      @unique
+  estrutura    Json 
+  criadoEm     DateTime @default(now())
+  atualizadoEm DateTime @updatedAt
+
+  servico    Servico             @relation(fields: [servicoId], references: [id])
+  relatorios RelatorioConsulta[]
+}
+
+model RelatorioConsulta {
+  id                 Int      @id @default(autoincrement())
+  consultaId         Int      @unique
+  servicoRelatorioId Int
+  dados              Json 
+  criadoEm           DateTime @default(now())
+
+  consulta         Consulta         @relation(fields: [consultaId], references: [id])
+  servicoRelatorio ServicoRelatorio @relation(fields: [servicoRelatorioId], references: [id])
+}
